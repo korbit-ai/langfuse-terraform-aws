@@ -1,5 +1,5 @@
 locals {
-  langfuse_values = <<EOT
+  langfuse_values   = <<EOT
 global:
   defaultStorageClass: efs
 langfuse:
@@ -55,21 +55,31 @@ s3:
   mediaUpload:
     prefix: "media/"
 EOT
-  ingress_values  = <<EOT
+  ingress_values    = <<EOT
 langfuse:
   ingress:
     enabled: true
     className: alb
     annotations:
-      alb.ingress.kubernetes.io/scheme: internet-facing
-      alb.ingress.kubernetes.io/target-type: 'ip'
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/inbound-cidrs: 172.31.0.0/16,172.41.0.0/16
       alb.ingress.kubernetes.io/ssl-redirect: '443'
     hosts:
     - host: ${var.domain}
       paths:
       - path: /
         pathType: Prefix
+  web:
+   resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 2Gi
+
 EOT
   encryption_values = var.use_encryption_key == false ? "" : <<EOT
 langfuse:
