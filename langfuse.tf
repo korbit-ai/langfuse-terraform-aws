@@ -1,4 +1,5 @@
 locals {
+  inbound_cidrs_csv = join(",", var.ingress_inbound_cidrs)
   langfuse_values   = <<EOT
 global:
   defaultStorageClass: efs
@@ -87,10 +88,10 @@ langfuse:
     className: alb
     annotations:
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
-      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/scheme: ${var.alb_scheme}
       alb.ingress.kubernetes.io/target-type: 'ip'
       alb.ingress.kubernetes.io/ssl-redirect: '443'
-      alb.ingress.kubernetes.io/inbound-cidrs: 172.31.0.0/16,172.41.0.0/16
+      alb.ingress.kubernetes.io/inbound-cidrs: ${local.inbound_cidrs_csv}
     hosts:
     - host: ${var.domain}
       paths:
