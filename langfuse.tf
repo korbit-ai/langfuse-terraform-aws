@@ -89,8 +89,8 @@ langfuse:
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
       alb.ingress.kubernetes.io/scheme: internal
       alb.ingress.kubernetes.io/target-type: 'ip'
-      alb.ingress.kubernetes.io/inbound-cidrs: 172.31.0.0/16,172.41.0.0/16
       alb.ingress.kubernetes.io/ssl-redirect: '443'
+      alb.ingress.kubernetes.io/inbound-cidrs: 172.31.0.0/16,172.41.0.0/16
     hosts:
     - host: ${var.domain}
       paths:
