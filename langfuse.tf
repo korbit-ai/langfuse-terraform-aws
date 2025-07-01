@@ -96,15 +96,6 @@ langfuse:
       paths:
       - path: /
         pathType: Prefix
-  web:
-   resources:
-      requests:
-        cpu: 500m
-        memory: 1Gi
-      limits:
-        cpu: 1
-        memory: 2Gi
-
 EOT
   encryption_values = var.use_encryption_key == false ? "" : <<EOT
 langfuse:
