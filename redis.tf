@@ -66,6 +66,7 @@ resource "aws_elasticache_replication_group" "redis" {
   engine_version             = "7.0"
   auth_token                 = random_password.redis_password.result
   transit_encryption_enabled = true
+  at_rest_encryption_enabled = true
 
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.redis.name
