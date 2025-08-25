@@ -27,10 +27,13 @@ langfuse:
       memory: "${var.langfuse_memory}"
   # The Web container needs slightly increased initial grace period on Fargate
   web:
+    replicas: ${var.langfuse_web_replicas}
     livenessProbe:
       initialDelaySeconds: 60
     readinessProbe:
       initialDelaySeconds: 60
+  worker:
+    replicas: ${var.langfuse_worker_replicas}
 postgresql:
   deploy: false
   host: ${aws_rds_cluster.postgres.endpoint}:5432
@@ -44,6 +47,7 @@ clickhouse:
   auth:
     existingSecret: langfuse
     existingSecretKey: clickhouse-password
+  replicaCount: ${var.clickhouse_replicas}
   # Resource configuration for ClickHouse containers
   resources:
     limits:
@@ -54,6 +58,7 @@ clickhouse:
       memory: "${var.clickhouse_memory}"
   # Resource configuration for ClickHouse Keeper
   zookeeper:
+    replicaCount: ${var.clickhouse_replicas}
     resources:
       limits:
         cpu: "${var.clickhouse_keeper_cpu}"
@@ -81,6 +86,31 @@ s3:
   mediaUpload:
     prefix: "media/"
 EOT
+
+  additional_env_values = length(var.additional_env) == 0 ? "" : <<EOT
+langfuse:
+  additionalEnv:
+%{for env in var.additional_env~}
+    - name: ${env.name}
+%{if env.value != null~}
+      value: "${env.value}"
+%{endif~}
+%{if env.valueFrom != null~}
+      valueFrom:
+%{if env.valueFrom.secretKeyRef != null~}
+        secretKeyRef:
+          name: ${env.valueFrom.secretKeyRef.name}
+          key: ${env.valueFrom.secretKeyRef.key}
+%{endif~}
+%{if env.valueFrom.configMapKeyRef != null~}
+        configMapKeyRef:
+          name: ${env.valueFrom.configMapKeyRef.name}
+          key: ${env.valueFrom.configMapKeyRef.key}
+%{endif~}
+%{endif~}
+%{endfor~}
+EOT
+
   ingress_values    = <<EOT
 langfuse:
   ingress:
@@ -104,6 +134,27 @@ langfuse:
     secretKeyRef:
       name: ${kubernetes_secret.langfuse.metadata[0].name}
       key: encryption_key
+EOT
+
+  # We could also consider excluding the following tables on opt-out:
+  # <query_log remove="1"/>
+  # <processors_profile_log remove="1"/>
+  # <part_log remove="1"/>
+  # <query_views_log remove="1"/>
+  # <asynchronous_insert_log remove="1"/>
+  # <query_metric_log remove="1"/>
+  # <error_log remove="1"/>
+  clickhouse_overwrite_values = var.enable_clickhouse_log_tables ? "" : <<EOT
+clickhouse:
+  extraOverrides: |
+      <clickhouse>
+        <trace_log remove="1"/>
+        <text_log remove="1"/>
+        <opentelemetry_span_log remove="1"/>
+        <asynchronous_metric_log remove="1"/>
+        <metric_log remove="1"/>
+        <latency_log remove="1"/>
+      </clickhouse>
 EOT
 }
 
@@ -153,11 +204,13 @@ resource "helm_release" "langfuse" {
   namespace        = "langfuse"
   create_namespace = true
 
-  values = [
+  values = compact([
     local.langfuse_values,
     local.ingress_values,
     local.encryption_values,
-  ]
+    local.additional_env_values,
+    local.clickhouse_overwrite_values,
+  ])
 
   depends_on = [
     aws_iam_role.langfuse_irsa,
