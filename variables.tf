@@ -22,7 +22,13 @@ variable "kubernetes_version" {
 }
 
 variable "use_encryption_key" {
-  description = "Wheter or not to use an Encryption key for LLM API credential and integration credential store"
+  description = "Whether to use an Encryption key for LLM API credential and integration credential store"
+  type        = bool
+  default     = true
+}
+
+variable "enable_clickhouse_log_tables" {
+  description = "Whether to enable Clickhouse logging tables. Having them active produces a high base-load on the EFS filesystem."
   type        = bool
   default     = false
 }
@@ -88,7 +94,7 @@ variable "use_single_nat_gateway" {
 variable "langfuse_helm_chart_version" {
   description = "Version of the Langfuse Helm chart to deploy"
   type        = string
-  default     = "1.2.15"
+  default     = "1.5.0"
 }
 
 # Resource configuration variables
@@ -102,6 +108,36 @@ variable "langfuse_memory" {
   description = "Memory allocation for Langfuse containers"
   type        = string
   default     = "4Gi"
+}
+
+variable "langfuse_web_replicas" {
+  description = "Number of replicas for Langfuse web container"
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.langfuse_web_replicas > 0
+    error_message = "There must be at least one Langfuse web replica."
+  }
+}
+
+variable "langfuse_worker_replicas" {
+  description = "Number of replicas for Langfuse worker container"
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.langfuse_worker_replicas > 0
+    error_message = "There must be at least one Langfuse worker replica."
+  }
+}
+
+variable "clickhouse_replicas" {
+  description = "Number of replicas of ClickHouse containers"
+  type        = number
+  default     = 3
+  validation {
+    condition     = var.clickhouse_replicas > 1
+    error_message = "There must be at least two clickhouse replicas for high availability."
+  }
 }
 
 variable "clickhouse_cpu" {
@@ -150,4 +186,32 @@ variable "redis_multi_az" {
   description = "Whether Multi-AZ is enabled for the Redis cluster"
   type        = bool
   default     = false
+}
+
+# Additional environment variables
+variable "additional_env" {
+  description = "Additional environment variables to set on Langfuse pods"
+  type = list(object({
+    name  = string
+    value = optional(string)
+    valueFrom = optional(object({
+      secretKeyRef = optional(object({
+        name = string
+        key  = string
+      }))
+      configMapKeyRef = optional(object({
+        name = string
+        key  = string
+      }))
+    }))
+  }))
+  default = []
+
+  validation {
+    condition = alltrue([
+      for env in var.additional_env :
+      (env.value != null && env.valueFrom == null) || (env.value == null && env.valueFrom != null)
+    ])
+    error_message = "Each environment variable must have either 'value' or 'valueFrom' specified, but not both."
+  }
 }
