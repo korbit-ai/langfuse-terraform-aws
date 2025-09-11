@@ -28,6 +28,9 @@ langfuse:
   # The Web container needs slightly increased initial grace period on Fargate
   web:
     replicas: ${var.langfuse_web_replicas}
+    # increased startupProbe for db migration during langfuse version update
+    startupProbe:
+      initialDelaySeconds: 300
     livenessProbe:
       initialDelaySeconds: 60
     readinessProbe:
